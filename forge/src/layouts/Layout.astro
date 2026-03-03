@@ -1,0 +1,180 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+  /** 'default' = participant nav | 'judge' = judge nav | 'admin' = admin nav | 'bare' = no nav */
+  nav?: 'default' | 'judge' | 'admin' | 'bare';
+}
+
+const {
+  title = 'Forge — AI Hackathon Platform',
+  description = 'Build, Deploy, and Compete at AI Hackathons powered by Forge.',
+  nav = 'default',
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+  </head>
+  <body>
+
+    {nav !== 'bare' && (
+      <header class="site-header">
+        <div class="container header-inner">
+          <a href="/" class="wordmark">FORGE</a>
+
+          {nav === 'default' && (
+            <nav class="header-nav">
+              <a href="/hackathons" class="nav-link">HACKATHONS</a>
+              <a href="/login" class="btn btn-primary">START HACKING →</a>
+            </nav>
+          )}
+
+          {nav === 'judge' && (
+            <nav class="header-nav">
+              <span class="nav-badge">JUDGE PORTAL</span>
+              <a href="/judge" class="nav-link">HACKATHONS</a>
+              <a href="/api/auth/logout" class="btn btn-outline-inv">LOGOUT</a>
+            </nav>
+          )}
+
+          {nav === 'admin' && (
+            <nav class="header-nav">
+              <span class="nav-badge">ADMIN</span>
+              <a href="/admin" class="nav-link">DASHBOARD</a>
+              <a href="/admin/hackathons" class="nav-link">HACKATHONS</a>
+              <a href="/admin/judges" class="nav-link">JUDGES</a>
+              <a href="/api/auth/logout" class="btn btn-outline-inv">LOGOUT</a>
+            </nav>
+          )}
+        </div>
+      </header>
+    )}
+
+    <main>
+      <slot />
+    </main>
+
+    {nav !== 'bare' && (
+      <footer class="site-footer">
+        <div class="container footer-inner">
+          <span class="wordmark-sm">FORGE</span>
+          <span class="footer-copy">© 2025 — ALL RIGHTS RESERVED</span>
+        </div>
+      </footer>
+    )}
+
+  </body>
+</html>
+
+<style>
+  /* ── Header ─────────────────────────────────────────── */
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background-color: var(--color-surface);
+    border-bottom: var(--border);
+    border-bottom-color: #222;
+  }
+
+  .header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+  }
+
+  .wordmark {
+    font-size: 1.375rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: var(--color-text-inv);
+    text-decoration: none;
+  }
+
+  .wordmark:hover {
+    color: var(--color-accent);
+  }
+
+  .header-nav {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+  }
+
+  .nav-link {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #ccc;
+    text-decoration: none;
+    transition: color 0.1s;
+  }
+
+  .nav-link:hover {
+    color: var(--color-accent);
+  }
+
+  .nav-badge {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.25rem 0.625rem;
+    background-color: var(--color-accent);
+    color: var(--color-text-inv);
+  }
+
+  /* ── Footer ─────────────────────────────────────────── */
+  .site-footer {
+    background-color: var(--color-surface);
+    border-top: var(--border);
+    border-top-color: #222;
+    margin-top: auto;
+  }
+
+  .footer-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+  }
+
+  .wordmark-sm {
+    font-size: 0.9375rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    color: var(--color-text-inv);
+  }
+
+  .footer-copy {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: #666;
+  }
+
+  /* ── Mobile ─────────────────────────────────────────── */
+  @media (max-width: 640px) {
+    .header-nav {
+      gap: 1rem;
+    }
+    .nav-link {
+      display: none;
+    }
+    .nav-link:last-of-type {
+      display: block;
+    }
+  }
+</style>

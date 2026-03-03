@@ -1,0 +1,174 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+
+const error = Astro.url.searchParams.get('error');
+---
+
+<Layout title="New Hackathon — Admin" nav="admin">
+  <div class="page">
+    <div class="container">
+
+      <a href="/admin/hackathons" class="back-link">← BACK TO HACKATHONS</a>
+
+      <div class="page-header">
+        <p class="page-eyebrow">// ADMIN</p>
+        <h1 class="page-title">NEW HACKATHON</h1>
+      </div>
+
+      {error && (
+        <div class="alert-error" style="margin-bottom:1.5rem;">
+          {error === 'failed' ? 'FAILED TO CREATE — check fields and try again.' : decodeURIComponent(error)}
+        </div>
+      )}
+
+      <form class="admin-form" id="hackathon-form">
+        <div class="form-section">
+          <h2 class="form-section-title">BASIC INFO</h2>
+          <div class="form-grid">
+            <div class="input-group span-2">
+              <label class="input-label" for="name">HACKATHON NAME *</label>
+              <input type="text" id="name" name="name" class="input" required placeholder="Studentrepreneur AI Hackathon" />
+            </div>
+            <div class="input-group span-2">
+              <label class="input-label" for="theme">THEME</label>
+              <input type="text" id="theme" name="theme" class="input" placeholder="AI for Student Entrepreneurs" />
+            </div>
+            <div class="input-group span-2">
+              <label class="input-label" for="description">DESCRIPTION *</label>
+              <textarea id="description" name="description" class="input" rows="3" required
+                placeholder="What is this hackathon about?"></textarea>
+            </div>
+            <div class="input-group span-2">
+              <label class="input-label" for="rules">RULES</label>
+              <textarea id="rules" name="rules" class="input" rows="5"
+                placeholder="1. Teams of 1-4 participants.&#10;2. All agents must be built using Langflow.&#10;..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h2 class="form-section-title">SCHEDULE & ACCESS</h2>
+          <div class="form-grid">
+            <div class="input-group">
+              <label class="input-label" for="start_at">START DATE & TIME *</label>
+              <input type="datetime-local" id="start_at" name="start_at" class="input" required />
+            </div>
+            <div class="input-group">
+              <label class="input-label" for="end_at">END DATE & TIME *</label>
+              <input type="datetime-local" id="end_at" name="end_at" class="input" required />
+            </div>
+            <div class="input-group span-2">
+              <label class="input-label" for="event_code">EVENT CODE *</label>
+              <input type="text" id="event_code" name="event_code" class="input" required
+                placeholder="FORGE2025" style="text-transform:uppercase;letter-spacing:.1em;" />
+              <p class="input-hint">Participants enter this code to unlock their Langflow credentials.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h2 class="form-section-title">LANGFLOW INSTANCE</h2>
+          <div class="form-grid">
+            <div class="input-group span-2">
+              <label class="input-label" for="langflow_url">LANGFLOW URL *</label>
+              <input type="url" id="langflow_url" name="langflow_url" class="input" required
+                placeholder="https://langflow.yourdomain.com" />
+            </div>
+            <div class="input-group">
+              <label class="input-label" for="langflow_admin_username">LANGFLOW ADMIN USERNAME</label>
+              <input type="text" id="langflow_admin_username" name="langflow_admin_username" class="input"
+                placeholder="admin" autocomplete="off" />
+            </div>
+            <div class="input-group">
+              <label class="input-label" for="langflow_admin_password">LANGFLOW ADMIN PASSWORD</label>
+              <input type="password" id="langflow_admin_password" name="langflow_admin_password" class="input"
+                placeholder="••••••••" autocomplete="new-password" />
+              <p class="input-hint">Stored encrypted. Used to fetch project data for judges.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <div id="form-error" class="alert-error" style="display:none;"></div>
+          <button type="submit" id="submit-btn" class="btn btn-primary btn-lg">CREATE HACKATHON →</button>
+          <a href="/admin/hackathons" class="btn btn-outline btn-lg">CANCEL</a>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</Layout>
+
+<script>
+  const form = document.getElementById('hackathon-form') as HTMLFormElement;
+  const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+  const errorEl = document.getElementById('form-error') as HTMLElement;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'CREATING...';
+    errorEl.style.display = 'none';
+
+    const fd = new FormData(form);
+    const body = {
+      name:                     fd.get('name'),
+      description:              fd.get('description') || '',
+      rules:                    fd.get('rules') || '',
+      theme:                    fd.get('theme') || null,
+      start_at:                 new Date(fd.get('start_at') as string).toISOString(),
+      end_at:                   new Date(fd.get('end_at') as string).toISOString(),
+      event_code:               (fd.get('event_code') as string).toUpperCase(),
+      langflow_url:             fd.get('langflow_url') || '',
+      langflow_admin_username:  fd.get('langflow_admin_username') || '',
+      langflow_admin_password:  fd.get('langflow_admin_password') || '',
+    };
+
+    try {
+      const res = await fetch('/api/admin/hackathons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        window.location.href = `/admin/hackathons/${data.id}/teams`;
+      } else {
+        const data = await res.json();
+        errorEl.textContent = data.detail ?? 'FAILED TO CREATE.';
+        errorEl.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'CREATE HACKATHON →';
+      }
+    } catch {
+      errorEl.textContent = 'NETWORK ERROR — try again.';
+      errorEl.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'CREATE HACKATHON →';
+    }
+  });
+</script>
+
+<style>
+  .page { padding:3rem 0 5rem; min-height:calc(100vh - 64px - 56px); }
+  .back-link { display:inline-block; font-size:.8125rem; font-weight:700; letter-spacing:.06em; color:#888; margin-bottom:2rem; text-decoration:none; }
+  .back-link:hover { color:var(--color-accent); }
+  .page-header { margin-bottom:2rem; }
+  .page-eyebrow { font-size:.8125rem; font-weight:600; letter-spacing:.1em; color:var(--color-accent); margin-bottom:.375rem; }
+  .page-title { font-size:3rem; font-weight:800; letter-spacing:-.02em; line-height:1; }
+
+  .admin-form { display:flex; flex-direction:column; gap:2.5rem; max-width:800px; }
+  .form-section { border:var(--border); padding:2rem; display:flex; flex-direction:column; gap:1.5rem; }
+  .form-section-title { font-size:.875rem; font-weight:800; letter-spacing:.1em; padding-bottom:.75rem; border-bottom:var(--border); }
+  .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; }
+  .span-2 { grid-column:span 2; }
+  .input-hint { font-size:.75rem; color:#999; margin-top:.375rem; }
+  .form-actions { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
+
+  @media (max-width:640px) {
+    .form-grid { grid-template-columns:1fr; }
+    .span-2 { grid-column:span 1; }
+    .page-title { font-size:2rem; }
+  }
+</style>

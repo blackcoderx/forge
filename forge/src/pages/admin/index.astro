@@ -1,0 +1,94 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+const API   = import.meta.env.API_URL ?? 'http://localhost:8000';
+const token = Astro.cookies.get('forge_token')?.value;
+
+let stats: any = null;
+try {
+  const res = await fetch(`${API}/api/admin/stats`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.ok) stats = await res.json();
+} catch {}
+---
+
+<Layout title="Admin Dashboard — Forge" nav="admin">
+  <div class="page">
+    <div class="container">
+
+      <div class="page-header">
+        <div>
+          <p class="page-eyebrow">// ADMIN</p>
+          <h1 class="page-title">DASHBOARD</h1>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      {stats && (
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-value">{stats.total_teams}</span>
+            <span class="stat-label">TOTAL TEAMS</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value accent">{stats.active_hackathons}</span>
+            <span class="stat-label">ACTIVE HACKATHONS</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">{stats.scored_teams}</span>
+            <span class="stat-label">TEAMS SCORED</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">{stats.unscored_teams}</span>
+            <span class="stat-label">TEAMS PENDING</span>
+          </div>
+        </div>
+      )}
+
+      <hr class="divider" />
+
+      <!-- Quick links -->
+      <div class="quicklinks">
+        <a href="/admin/hackathons" class="ql-card">
+          <span class="ql-icon">[ H ]</span>
+          <div>
+            <p class="ql-title">HACKATHONS</p>
+            <p class="ql-desc">Create and manage hackathon events</p>
+          </div>
+          <span class="ql-arrow">→</span>
+        </a>
+        <a href="/admin/judges" class="ql-card">
+          <span class="ql-icon">[ J ]</span>
+          <div>
+            <p class="ql-title">JUDGES</p>
+            <p class="ql-desc">Add and manage judge accounts</p>
+          </div>
+          <span class="ql-arrow">→</span>
+        </a>
+      </div>
+
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .page { padding:3rem 0 5rem; min-height:calc(100vh - 64px - 56px); }
+  .page-header { margin-bottom:2rem; }
+  .page-eyebrow { font-size:.8125rem; font-weight:600; letter-spacing:.1em; color:var(--color-accent); margin-bottom:.375rem; }
+  .page-title { font-size:3rem; font-weight:800; letter-spacing:-.02em; line-height:1; }
+
+  .stats-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:1rem; margin-bottom:2rem; }
+  .stat-card { border:var(--border); padding:1.5rem; display:flex; flex-direction:column; gap:.5rem; }
+  .stat-value { font-size:3rem; font-weight:800; line-height:1; }
+  .stat-value.accent { color:var(--color-accent); }
+  .stat-label { font-size:.6875rem; font-weight:700; letter-spacing:.1em; color:#888; }
+
+  .quicklinks { display:flex; flex-direction:column; gap:1rem; max-width:640px; }
+  .ql-card { display:flex; align-items:center; gap:1.5rem; border:var(--border); padding:1.5rem; text-decoration:none; color:var(--color-text); transition:transform .1s, box-shadow .1s; }
+  .ql-card:hover { transform:translate(-2px,-2px); box-shadow:var(--shadow); }
+  .ql-icon { font-size:1.25rem; font-weight:800; color:var(--color-accent); flex-shrink:0; width:48px; text-align:center; }
+  .ql-title { font-size:1rem; font-weight:800; letter-spacing:.04em; }
+  .ql-desc { font-size:.8125rem; color:#888; margin-top:.25rem; }
+  .ql-arrow { font-size:1.25rem; font-weight:700; color:#ccc; margin-left:auto; }
+</style>

@@ -1,0 +1,99 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+const token = Astro.cookies.get('forge_token');
+const role = Astro.cookies.get('forge_role');
+if (token?.value && role?.value === 'judge') {
+  return Astro.redirect('/judge');
+}
+
+const error = Astro.url.searchParams.get('error');
+---
+
+<Layout title="Judge Login — Forge" nav="bare">
+  <div class="login-page">
+
+    <div class="login-brand">
+      <a href="/" class="wordmark">FORGE</a>
+      <p class="brand-sub">// JUDGE PORTAL</p>
+    </div>
+
+    <div class="login-card">
+      <div class="login-card-header">
+        <h1 class="login-title">JUDGE LOGIN</h1>
+        <div class="login-rule"></div>
+      </div>
+
+      {error === 'invalid' && (
+        <div class="alert-error" role="alert">
+          INVALID CREDENTIALS — contact the event organizer.
+        </div>
+      )}
+
+      <form class="login-form" method="post" action="/api/auth/login">
+        <div class="input-group">
+          <label for="username" class="input-label">USERNAME</label>
+          <input type="text" id="username" name="username" class="input"
+            placeholder="judge_01" required autocomplete="username" autofocus />
+        </div>
+        <div class="input-group">
+          <label for="password" class="input-label">PASSWORD</label>
+          <input type="password" id="password" name="password" class="input"
+            placeholder="••••••••" required autocomplete="current-password" />
+        </div>
+        <input type="hidden" name="role" value="judge" />
+        <button type="submit" class="btn btn-primary btn-lg login-btn">LOGIN →</button>
+      </form>
+
+      <div class="login-footer">
+        <p class="login-footer-text">
+          PARTICIPANT? <a href="/login" class="login-link">PARTICIPANT PORTAL →</a>
+        </p>
+      </div>
+    </div>
+
+  </div>
+</Layout>
+
+<style>
+  .login-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-bg);
+    padding: 2rem 1rem;
+  }
+  .login-brand { text-align: center; margin-bottom: 2rem; }
+  .wordmark {
+    font-size: 1.75rem; font-weight: 800; letter-spacing: 0.12em;
+    color: var(--color-text); text-decoration: none;
+  }
+  .wordmark:hover { color: var(--color-accent); }
+  .brand-sub {
+    font-size: 0.75rem; font-weight: 600; letter-spacing: 0.1em;
+    color: var(--color-accent); margin-top: 0.25rem;
+  }
+  .login-card {
+    width: 100%; max-width: 420px;
+    background-color: var(--color-surface);
+    border: var(--border); border-color: #333;
+    padding: 2.5rem;
+    display: flex; flex-direction: column; gap: 1.5rem;
+  }
+  .login-card-header { display: flex; flex-direction: column; gap: 0.75rem; }
+  .login-title { font-size: 2rem; font-weight: 800; color: var(--color-text-inv); }
+  .login-rule { width: 48px; height: 3px; background-color: var(--color-accent); }
+  .login-card .input-label { color: #aaa; }
+  .login-card .input { background-color: #111; border-color: #333; color: var(--color-text-inv); }
+  .login-card .input:focus { border-color: var(--color-accent); box-shadow: 3px 3px 0px var(--color-accent); }
+  .login-card .input::placeholder { color: #555; }
+  .login-card .alert-error { background-color: #1a0000; border-color: var(--color-error); color: #ff6b6b; }
+  .login-form { display: flex; flex-direction: column; gap: 1.25rem; }
+  .login-btn { width: 100%; justify-content: center; margin-top: 0.25rem; }
+  .login-footer { border-top: 1px solid #222; padding-top: 1.25rem; text-align: center; }
+  .login-footer-text { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; color: #555; }
+  .login-link { color: var(--color-accent); text-decoration: none; }
+  .login-link:hover { text-decoration: underline; }
+</style>

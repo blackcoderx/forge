@@ -1,0 +1,91 @@
+---
+import Layout from '../../../../../layouts/Layout.astro';
+
+const API   = import.meta.env.API_URL ?? 'http://localhost:8000';
+const token = Astro.cookies.get('forge_token')?.value;
+const { id } = Astro.params;
+
+let hackathon: any = null;
+let teams: any[] = [];
+
+try {
+  const [hRes, tRes] = await Promise.all([
+    fetch(`${API}/api/hackathons/${id}`, { headers: { Authorization: `Bearer ${token}` } }),
+    fetch(`${API}/api/hackathons/${id}/teams`, { headers: { Authorization: `Bearer ${token}` } }),
+  ]);
+  if (hRes.ok) hackathon = await hRes.json();
+  if (tRes.ok) teams = await tRes.json();
+} catch {}
+---
+
+<Layout title="Teams — Admin" nav="admin">
+  <div class="page">
+    <div class="container">
+
+      <a href="/admin/hackathons" class="back-link">← BACK TO HACKATHONS</a>
+
+      <div class="page-header">
+        <div>
+          <p class="page-eyebrow">// {hackathon?.name ?? 'HACKATHON'}</p>
+          <h1 class="page-title">TEAMS</h1>
+        </div>
+        <a href={`/admin/hackathons/${id}/teams/new`} class="btn btn-primary">+ ADD TEAM</a>
+      </div>
+
+      <p class="team-count">{teams.length} TEAM{teams.length !== 1 ? 'S' : ''} REGISTERED</p>
+
+      {teams.length === 0 ? (
+        <div class="empty-state">
+          <p class="empty-text">NO TEAMS YET.</p>
+          <a href={`/admin/hackathons/${id}/teams/new`} class="btn btn-primary" style="margin-top:1rem;">ADD FIRST TEAM →</a>
+        </div>
+      ) : (
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>TEAM NAME</th>
+                <th>PORTAL USERNAME</th>
+                <th>LANGFLOW USERNAME</th>
+                <th>CREATED</th>
+              </tr>
+            </thead>
+            <tbody>
+              {teams.map((t: any, i: number) => (
+                <tr>
+                  <td class="idx">{i + 1}</td>
+                  <td class="team-name">{t.name}</td>
+                  <td class="mono-cell">—</td>
+                  <td class="mono-cell accent">{t.langflow_username}</td>
+                  <td class="date-cell">
+                    {new Date(t.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .page { padding:3rem 0 5rem; min-height:calc(100vh - 64px - 56px); }
+  .back-link { display:inline-block; font-size:.8125rem; font-weight:700; letter-spacing:.06em; color:#888; margin-bottom:2rem; text-decoration:none; }
+  .back-link:hover { color:var(--color-accent); }
+  .page-header { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:1rem; flex-wrap:wrap; }
+  .page-eyebrow { font-size:.8125rem; font-weight:600; letter-spacing:.1em; color:var(--color-accent); margin-bottom:.375rem; }
+  .page-title { font-size:3rem; font-weight:800; letter-spacing:-.02em; line-height:1; }
+  .team-count { font-size:.8125rem; font-weight:600; letter-spacing:.06em; color:#888; margin-bottom:1.5rem; }
+  .table-wrap { overflow-x:auto; }
+  .idx { color:#aaa; width:40px; }
+  .team-name { font-weight:700; }
+  .mono-cell { font-family:var(--font-mono); font-size:.875rem; }
+  .mono-cell.accent { color:var(--color-accent); }
+  .date-cell { font-size:.8125rem; color:#888; white-space:nowrap; }
+  .empty-state { padding:4rem 0; text-align:center; }
+  .empty-text { font-size:1.125rem; font-weight:700; color:#aaa; }
+</style>

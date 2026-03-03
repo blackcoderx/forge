@@ -1,0 +1,91 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+
+const API   = import.meta.env.API_URL ?? 'http://localhost:8000';
+const token = Astro.cookies.get('forge_token')?.value;
+
+let hackathons: any[] = [];
+try {
+  const res = await fetch(`${API}/api/hackathons/admin/all`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.ok) hackathons = await res.json();
+} catch {}
+---
+
+<Layout title="Hackathons — Admin" nav="admin">
+  <div class="page">
+    <div class="container">
+
+      <div class="page-header">
+        <div>
+          <p class="page-eyebrow">// ADMIN</p>
+          <h1 class="page-title">HACKATHONS</h1>
+        </div>
+        <a href="/admin/hackathons/new" class="btn btn-primary">+ NEW HACKATHON</a>
+      </div>
+
+      {hackathons.length === 0 ? (
+        <div class="empty-state">
+          <p class="empty-text">NO HACKATHONS YET.</p>
+          <a href="/admin/hackathons/new" class="btn btn-primary" style="margin-top:1rem;">CREATE FIRST →</a>
+        </div>
+      ) : (
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>NAME</th>
+                <th>STATUS</th>
+                <th>EVENT CODE</th>
+                <th>DATES</th>
+                <th>TEAMS</th>
+                <th>ACTION</th>
+              </tr>
+            </thead>
+            <tbody>
+              {hackathons.map((h: any) => (
+                <tr>
+                  <td class="hack-name">{h.name}</td>
+                  <td><span class={`badge badge-${h.status}`}>{h.status.toUpperCase()}</span></td>
+                  <td class="mono-cell">{h.event_code}</td>
+                  <td class="date-cell">
+                    {new Date(h.start_at).toLocaleDateString('en-US', { month:'short', day:'numeric' })}
+                    {' — '}
+                    {new Date(h.end_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}
+                  </td>
+                  <td>
+                    <a href={`/admin/hackathons/${h.id}/teams`} class="table-link">
+                      MANAGE TEAMS →
+                    </a>
+                  </td>
+                  <td>
+                    <a href={`/admin/hackathons/${h.id}`} class="btn btn-outline" style="font-size:.75rem;padding:.375rem .75rem;">
+                      EDIT
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .page { padding:3rem 0 5rem; min-height:calc(100vh - 64px - 56px); }
+  .page-header { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:2rem; flex-wrap:wrap; }
+  .page-eyebrow { font-size:.8125rem; font-weight:600; letter-spacing:.1em; color:var(--color-accent); margin-bottom:.375rem; }
+  .page-title { font-size:3rem; font-weight:800; letter-spacing:-.02em; line-height:1; }
+  .table-wrap { overflow-x:auto; }
+  .hack-name { font-weight:700; }
+  .mono-cell { font-family:var(--font-mono); font-size:.875rem; letter-spacing:.06em; color:var(--color-accent); }
+  .date-cell { font-size:.8125rem; color:#666; white-space:nowrap; }
+  .table-link { font-size:.75rem; font-weight:700; letter-spacing:.06em; color:var(--color-accent); text-decoration:none; }
+  .table-link:hover { text-decoration:underline; }
+  .empty-state { padding:4rem 0; text-align:center; }
+  .empty-text { font-size:1.125rem; font-weight:700; color:#aaa; }
+</style>

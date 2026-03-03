@@ -1,0 +1,292 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+
+const API = import.meta.env.API_URL ?? 'http://localhost:8000';
+const token = Astro.cookies.get('forge_token')?.value;
+const { hackathon_id, team_id } = Astro.params;
+
+let team: any = null;
+let hackathon: any = null;
+let existingScore: any = null;
+let fetchError = false;
+
+try {
+  const [hackRes, teamRes, scoreRes] = await Promise.all([
+    fetch(`${API}/api/hackathons/${hackathon_id}`, { headers: { Authorization: `Bearer ${token}` } }),
+    fetch(`${API}/api/hackathons/${hackathon_id}/teams/${team_id}`, { headers: { Authorization: `Bearer ${token}` } }),
+    fetch(`${API}/api/scores/${team_id}?hackathon_id=${hackathon_id}`, { headers: { Authorization: `Bearer ${token}` } }),
+  ]);
+
+  if (hackRes.ok) hackathon = await hackRes.json();
+  if (teamRes.ok) team = await teamRes.json();
+  if (scoreRes.ok) existingScore = await scoreRes.json();
+} catch { fetchError = true; }
+
+const isUpdate = existingScore && existingScore.total != null;
+---
+
+<Layout title={team ? `Score ${team.name} — Forge` : 'Score Team'} nav="judge">
+  <div class="page">
+    <div class="container">
+
+      <a href={`/judge/${hackathon_id}`} class="back-link">← BACK TO TEAMS</a>
+
+      {fetchError && (
+        <div class="alert-error" style="margin-top:1rem;">FAILED TO LOAD — please refresh.</div>
+      )}
+
+      {team && hackathon && (
+        <>
+          <div class="score-header">
+            <div>
+              <p class="page-eyebrow">// {hackathon.name}</p>
+              <h1 class="page-title">{team.name}</h1>
+            </div>
+            {isUpdate && (
+              <span class="badge badge-scored">ALREADY SCORED — {existingScore.total}/40</span>
+            )}
+          </div>
+
+          <!-- Project info from Langflow (stub until integration) -->
+          <div class="project-card card">
+            <div class="project-header">
+              <h2 class="project-title">PROJECT</h2>
+              <span class="stub-badge">LANGFLOW SYNC PENDING</span>
+            </div>
+            <p class="project-desc">
+              Project details will be available after Langflow integration.
+              Use the button below to view the team's flows directly.
+            </p>
+            <a
+              href={hackathon.langflow_url ?? '#'}
+              target="_blank"
+              rel="noopener"
+              class="btn btn-outline"
+              style="margin-top:1rem;"
+            >
+              OPEN LANGFLOW →
+            </a>
+          </div>
+
+          <hr class="divider" />
+
+          <!-- Scoring form -->
+          <div class="scoring-section">
+            <h2 class="scoring-title">SCORE THIS TEAM</h2>
+            <div class="scoring-rule"></div>
+
+            <div id="submit-error" class="alert-error" style="display:none;margin-bottom:1.5rem;"></div>
+            <div id="submit-success" class="alert-success" style="display:none;margin-bottom:1.5rem;"></div>
+
+            <form id="score-form" class="score-form">
+              {[
+                { id: 'innovation',   label: 'INNOVATION',          hint: 'How novel and creative is the idea?' },
+                { id: 'execution',    label: 'TECHNICAL EXECUTION',  hint: 'How well built and functional is it?' },
+                { id: 'impact',       label: 'IMPACT / USE CASE',    hint: 'How useful or impactful is the solution?' },
+                { id: 'presentation', label: 'PRESENTATION',         hint: 'How well did they communicate their work?' },
+              ].map(criterion => (
+                <div class="criterion">
+                  <div class="criterion-header">
+                    <div>
+                      <label class="criterion-label" for={criterion.id}>{criterion.label}</label>
+                      <p class="criterion-hint">{criterion.hint}</p>
+                    </div>
+                    <div class="score-display">
+                      <span class="score-value" id={`${criterion.id}-display`}>
+                        {existingScore?.[criterion.id] ?? 5}
+                      </span>
+                      <span class="score-max">/10</span>
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    id={criterion.id}
+                    name={criterion.id}
+                    min="1"
+                    max="10"
+                    step="1"
+                    value={existingScore?.[criterion.id] ?? 5}
+                    class="score-slider"
+                  />
+                  <div class="slider-labels">
+                    <span>1 — POOR</span>
+                    <span>5 — AVERAGE</span>
+                    <span>10 — EXCELLENT</span>
+                  </div>
+                </div>
+              ))}
+
+              <div class="total-row">
+                <span class="total-label">TOTAL</span>
+                <span class="total-value" id="total-display">
+                  {existingScore
+                    ? existingScore.total
+                    : 20}/40
+                </span>
+              </div>
+
+              <div class="input-group">
+                <label for="comments" class="input-label">COMMENTS (OPTIONAL)</label>
+                <textarea
+                  id="comments"
+                  name="comments"
+                  class="input"
+                  rows="4"
+                  placeholder="Notes for this team..."
+                >{existingScore?.comments ?? ''}</textarea>
+              </div>
+
+              <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">
+                {isUpdate ? 'UPDATE SCORE →' : 'SUBMIT SCORE →'}
+              </button>
+            </form>
+          </div>
+        </>
+      )}
+
+    </div>
+  </div>
+</Layout>
+
+<script define:vars={{ hackathonId: hackathon_id, teamId: team_id, isUpdate }}>
+  // Live total calculation
+  const sliders = document.querySelectorAll('.score-slider');
+  const totalDisplay = document.getElementById('total-display');
+
+  function updateTotal() {
+    let total = 0;
+    sliders.forEach(slider => {
+      const id = slider.id;
+      const val = parseInt(slider.value);
+      const display = document.getElementById(`${id}-display`);
+      if (display) display.textContent = val;
+      total += val;
+    });
+    if (totalDisplay) totalDisplay.textContent = `${total}/40`;
+  }
+
+  sliders.forEach(s => s.addEventListener('input', updateTotal));
+  updateTotal();
+
+  // Form submission
+  const form = document.getElementById('score-form');
+  const submitBtn = document.getElementById('submit-btn');
+  const errorEl = document.getElementById('submit-error');
+  const successEl = document.getElementById('submit-success');
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'SUBMITTING...';
+    errorEl.style.display = 'none';
+    successEl.style.display = 'none';
+
+    const fd = new FormData(form);
+    const body = {
+      hackathon_id: hackathonId,
+      innovation:   parseInt(fd.get('innovation')),
+      execution:    parseInt(fd.get('execution')),
+      impact:       parseInt(fd.get('impact')),
+      presentation: parseInt(fd.get('presentation')),
+      comments:     fd.get('comments') ?? '',
+    };
+
+    try {
+      const method = isUpdate ? 'PUT' : 'POST';
+      const res = await fetch(`/api/scores/${teamId}`, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        successEl.textContent = isUpdate ? 'SCORE UPDATED.' : 'SCORE SUBMITTED.';
+        successEl.style.display = 'block';
+        submitBtn.textContent = isUpdate ? 'UPDATE SCORE →' : 'SUBMIT SCORE →';
+        submitBtn.disabled = false;
+      } else {
+        const data = await res.json();
+        errorEl.textContent = data.detail ?? 'FAILED TO SUBMIT — try again.';
+        errorEl.style.display = 'block';
+        submitBtn.textContent = isUpdate ? 'UPDATE SCORE →' : 'SUBMIT SCORE →';
+        submitBtn.disabled = false;
+      }
+    } catch {
+      errorEl.textContent = 'NETWORK ERROR — try again.';
+      errorEl.style.display = 'block';
+      submitBtn.textContent = isUpdate ? 'UPDATE SCORE →' : 'SUBMIT SCORE →';
+      submitBtn.disabled = false;
+    }
+  });
+</script>
+
+<style>
+  .page { padding: 3rem 0 5rem; min-height: calc(100vh - 64px - 56px); }
+  .back-link { display: inline-block; font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.06em; color: #888; margin-bottom: 2rem; text-decoration: none; }
+  .back-link:hover { color: var(--color-accent); }
+
+  .score-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
+  .page-eyebrow { font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.1em; color: var(--color-accent); margin-bottom: 0.375rem; }
+  .page-title { font-size: 2.5rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1; }
+
+  .project-card { margin-bottom: 0; }
+  .project-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+  .project-title { font-size: 1.125rem; font-weight: 800; }
+  .stub-badge { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; padding: 0.25rem 0.625rem; border: 1px solid #ccc; color: #999; }
+  .project-desc { font-size: 0.9rem; line-height: 1.6; color: #666; }
+
+  .scoring-section { max-width: 680px; }
+  .scoring-title { font-size: 1.5rem; font-weight: 800; margin-bottom: 0.5rem; }
+  .scoring-rule { width: 40px; height: 3px; background-color: var(--color-accent); margin-bottom: 2rem; }
+
+  .score-form { display: flex; flex-direction: column; gap: 2rem; }
+
+  .criterion { display: flex; flex-direction: column; gap: 0.75rem; padding-bottom: 2rem; border-bottom: var(--border); }
+  .criterion:last-of-type { border-bottom: none; }
+  .criterion-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+  .criterion-label { font-size: 0.875rem; font-weight: 700; letter-spacing: 0.06em; }
+  .criterion-hint { font-size: 0.8125rem; color: #888; margin-top: 0.25rem; }
+
+  .score-display { display: flex; align-items: baseline; gap: 0.125rem; }
+  .score-value { font-size: 2.5rem; font-weight: 800; color: var(--color-accent); line-height: 1; }
+  .score-max { font-size: 1rem; font-weight: 600; color: #aaa; }
+
+  .score-slider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: #e0e0e0;
+    outline: none;
+    cursor: pointer;
+  }
+  .score-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    background: var(--color-accent);
+    border: 2px solid var(--color-border);
+    cursor: pointer;
+    border-radius: 0;
+  }
+  .score-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: var(--color-accent);
+    border: 2px solid var(--color-border);
+    border-radius: 0;
+    cursor: pointer;
+  }
+
+  .slider-labels { display: flex; justify-content: space-between; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.04em; color: #aaa; }
+
+  .total-row { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; border: var(--border); background-color: var(--color-surface); }
+  .total-label { font-size: 0.875rem; font-weight: 700; letter-spacing: 0.1em; color: var(--color-text-inv); }
+  .total-value { font-size: 2rem; font-weight: 800; color: var(--color-accent); }
+
+  .alert-success { border: 2px solid #00aa55; padding: 0.75rem 1rem; font-size: 0.875rem; font-weight: 600; color: #00aa55; background-color: #f0fff8; }
+
+  @media (max-width: 640px) {
+    .page-title { font-size: 1.75rem; }
+    .score-value { font-size: 2rem; }
+  }
+</style>

@@ -1,0 +1,99 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+
+const API   = import.meta.env.API_URL ?? 'http://localhost:8000';
+const token = Astro.cookies.get('forge_token')?.value;
+
+let judges: any[] = [];
+try {
+  const res = await fetch(`${API}/api/admin/judges`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.ok) judges = await res.json();
+} catch {}
+---
+
+<Layout title="Judges — Admin" nav="admin">
+  <div class="page">
+    <div class="container">
+
+      <div class="page-header">
+        <div>
+          <p class="page-eyebrow">// ADMIN</p>
+          <h1 class="page-title">JUDGES</h1>
+        </div>
+        <a href="/admin/judges/new" class="btn btn-primary">+ ADD JUDGE</a>
+      </div>
+
+      {judges.length === 0 ? (
+        <div class="empty-state">
+          <p class="empty-text">NO JUDGES YET.</p>
+          <a href="/admin/judges/new" class="btn btn-primary" style="margin-top:1rem;">ADD FIRST →</a>
+        </div>
+      ) : (
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>USERNAME</th>
+                <th>CREATED</th>
+                <th>ACTION</th>
+              </tr>
+            </thead>
+            <tbody>
+              {judges.map((j: any, i: number) => (
+                <tr>
+                  <td class="idx">{i + 1}</td>
+                  <td class="judge-name">{j.username}</td>
+                  <td class="date-cell">
+                    {new Date(j.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}
+                  </td>
+                  <td>
+                    <button
+                      class="btn btn-outline delete-btn"
+                      style="font-size:.75rem;padding:.375rem .75rem;"
+                      data-id={j.id}
+                      data-username={j.username}
+                    >DELETE</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+    </div>
+  </div>
+</Layout>
+
+<script>
+  document.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id       = btn.getAttribute('data-id');
+      const username = btn.getAttribute('data-username');
+      if (!confirm(`Delete judge "${username}"? This cannot be undone.`)) return;
+
+      const res = await fetch(`/api/admin/judges/${id}`, { method: 'DELETE' });
+      if (res.ok || res.status === 204) {
+        window.location.reload();
+      } else {
+        alert('FAILED TO DELETE — try again.');
+      }
+    });
+  });
+</script>
+
+<style>
+  .page { padding:3rem 0 5rem; min-height:calc(100vh - 64px - 56px); }
+  .page-header { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:2rem; flex-wrap:wrap; }
+  .page-eyebrow { font-size:.8125rem; font-weight:600; letter-spacing:.1em; color:var(--color-accent); margin-bottom:.375rem; }
+  .page-title { font-size:3rem; font-weight:800; letter-spacing:-.02em; line-height:1; }
+  .table-wrap { overflow-x:auto; }
+  .idx { color:#aaa; width:40px; }
+  .judge-name { font-weight:700; }
+  .date-cell { font-size:.8125rem; color:#888; }
+  .empty-state { padding:4rem 0; text-align:center; }
+  .empty-text { font-size:1.125rem; font-weight:700; color:#aaa; }
+</style>

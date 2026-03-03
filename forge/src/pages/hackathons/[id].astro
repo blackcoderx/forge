@@ -1,0 +1,372 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+const API = import.meta.env.API_URL ?? 'http://localhost:8000';
+const token = Astro.cookies.get('forge_token')?.value;
+const { id } = Astro.params;
+
+let hackathon: any = null;
+let fetchError = false;
+
+try {
+  const res = await fetch(`${API}/api/hackathons/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.ok) {
+    hackathon = await res.json();
+  } else if (res.status === 404) {
+    return Astro.redirect('/hackathons');
+  } else {
+    fetchError = true;
+  }
+} catch {
+  fetchError = true;
+}
+---
+
+<Layout title={hackathon ? `${hackathon.name} — Forge` : 'Hackathon — Forge'}>
+  <div class="page">
+    <div class="container">
+
+      {fetchError && (
+        <div class="alert-error" style="margin-top:2rem;">
+          FAILED TO LOAD HACKATHON — please refresh.
+        </div>
+      )}
+
+      {hackathon && (
+        <>
+          <!-- Back link -->
+          <a href="/hackathons" class="back-link">← BACK TO HACKATHONS</a>
+
+          <!-- Hackathon header -->
+          <div class="hack-header">
+            <div class="hack-meta">
+              <span class={`badge badge-${hackathon.status}`}>{hackathon.status.toUpperCase()}</span>
+              <span class="hack-dates">
+                {new Date(hackathon.start_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                {' — '}
+                {new Date(hackathon.end_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              </span>
+            </div>
+            <h1 class="hack-title">{hackathon.name}</h1>
+            {hackathon.theme && <p class="hack-theme">// THEME: {hackathon.theme}</p>}
+            <p class="hack-desc">{hackathon.description}</p>
+          </div>
+
+          <hr class="divider" />
+
+          <div class="hack-body">
+
+            <!-- Left: info -->
+            <div class="hack-info">
+              {hackathon.rules && (
+                <div class="info-block">
+                  <h2 class="info-title">RULES</h2>
+                  <div class="info-rule"></div>
+                  <div class="rules-text" set:html={hackathon.rules.replace(/\n/g, '<br/>')} />
+                </div>
+              )}
+            </div>
+
+            <!-- Right: unlock panel -->
+            <div class="unlock-panel">
+              <div id="unlock-section">
+                <h2 class="unlock-title">UNLOCK ACCESS</h2>
+                <div class="unlock-rule"></div>
+                <p class="unlock-desc">
+                  Enter the event code given by your organizer to reveal your Langflow credentials.
+                </p>
+
+                <div id="unlock-form-wrap">
+                  <div id="unlock-error" class="alert-error" style="display:none;margin-bottom:1rem;"></div>
+
+                  <form id="unlock-form" class="unlock-form">
+                    <div class="input-group">
+                      <label for="event-code" class="input-label">EVENT CODE</label>
+                      <input
+                        type="text"
+                        id="event-code"
+                        name="event_code"
+                        class="input"
+                        placeholder="FORGE-XXXX"
+                        required
+                        autocomplete="off"
+                        style="text-transform:uppercase;letter-spacing:0.1em;"
+                      />
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg" id="unlock-btn">
+                      UNLOCK →
+                    </button>
+                  </form>
+                </div>
+
+                <!-- Credentials reveal (hidden until unlock) -->
+                <div id="cred-reveal" style="display:none;">
+                  <div class="cred-box">
+                    <p class="cred-title">YOUR LANGFLOW CREDENTIALS</p>
+                    <div class="cred-row">
+                      <span class="cred-label">USERNAME</span>
+                      <div class="cred-val-wrap">
+                        <span class="cred-value" id="lf-username"></span>
+                        <button class="copy-btn" data-target="lf-username" title="Copy">COPY</button>
+                      </div>
+                    </div>
+                    <div class="cred-row">
+                      <span class="cred-label">PASSWORD</span>
+                      <div class="cred-val-wrap">
+                        <span class="cred-value" id="lf-password"></span>
+                        <button class="copy-btn" data-target="lf-password" title="Copy">COPY</button>
+                      </div>
+                    </div>
+                  </div>
+                  <a id="langflow-link" href="#" target="_blank" rel="noopener" class="btn btn-primary btn-lg open-btn">
+                    OPEN LANGFLOW →
+                  </a>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </>
+      )}
+    </div>
+  </div>
+</Layout>
+
+<script define:vars={{ hackathonId: id }}>
+  const API_URL = window.__API_URL__ ?? '';
+
+  const form = document.getElementById('unlock-form');
+  const unlockBtn = document.getElementById('unlock-btn');
+  const errorEl = document.getElementById('unlock-error');
+  const formWrap = document.getElementById('unlock-form-wrap');
+  const credReveal = document.getElementById('cred-reveal');
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const code = document.getElementById('event-code').value.trim().toUpperCase();
+
+    unlockBtn.disabled = true;
+    unlockBtn.textContent = 'UNLOCKING...';
+    errorEl.style.display = 'none';
+
+    try {
+      const res = await fetch(`/api/hackathons/${hackathonId}/unlock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event_code: code }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        document.getElementById('lf-username').textContent = data.langflow_username;
+        document.getElementById('lf-password').textContent = data.langflow_password;
+        document.getElementById('langflow-link').href = data.langflow_url;
+
+        formWrap.style.display = 'none';
+        credReveal.style.display = 'block';
+      } else {
+        errorEl.textContent = data.detail ?? 'INVALID CODE — check and try again.';
+        errorEl.style.display = 'block';
+        unlockBtn.disabled = false;
+        unlockBtn.textContent = 'UNLOCK →';
+      }
+    } catch {
+      errorEl.textContent = 'NETWORK ERROR — please try again.';
+      errorEl.style.display = 'block';
+      unlockBtn.disabled = false;
+      unlockBtn.textContent = 'UNLOCK →';
+    }
+  });
+
+  // Copy buttons
+  document.querySelectorAll('.copy-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.getAttribute('data-target');
+      const value = document.getElementById(targetId)?.textContent ?? '';
+      navigator.clipboard.writeText(value).then(() => {
+        btn.textContent = 'COPIED!';
+        setTimeout(() => { btn.textContent = 'COPY'; }, 2000);
+      });
+    });
+  });
+</script>
+
+<style>
+  .page {
+    padding: 3rem 0 5rem;
+    min-height: calc(100vh - 64px - 56px);
+  }
+
+  .back-link {
+    display: inline-block;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #888;
+    margin-bottom: 2rem;
+    text-decoration: none;
+  }
+
+  .back-link:hover { color: var(--color-accent); }
+
+  .hack-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    margin-bottom: 2rem;
+  }
+
+  .hack-meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .hack-dates {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #888;
+  }
+
+  .hack-title {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  .hack-theme {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-accent);
+    letter-spacing: 0.05em;
+  }
+
+  .hack-desc {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: #555;
+    max-width: 640px;
+  }
+
+  .hack-body {
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    gap: 3rem;
+    align-items: start;
+  }
+
+  /* Info block */
+  .info-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .info-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+
+  .info-rule {
+    width: 40px;
+    height: 3px;
+    background-color: var(--color-accent);
+  }
+
+  .rules-text {
+    font-size: 0.9rem;
+    line-height: 1.8;
+    color: #444;
+  }
+
+  /* Unlock panel */
+  .unlock-panel {
+    border: var(--border);
+    padding: 2rem;
+    background-color: var(--color-bg);
+    position: sticky;
+    top: 80px;
+  }
+
+  .unlock-title {
+    font-size: 1.375rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+  }
+
+  .unlock-rule {
+    width: 40px;
+    height: 3px;
+    background-color: var(--color-accent);
+    margin-bottom: 1rem;
+  }
+
+  .unlock-desc {
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: #666;
+    margin-bottom: 1.5rem;
+  }
+
+  .unlock-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  /* Credentials */
+  .cred-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #999;
+    margin-bottom: 1rem;
+  }
+
+  .cred-val-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .copy-btn {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 0.25rem 0.625rem;
+    border: 1px solid #555;
+    background: transparent;
+    color: #aaa;
+    cursor: pointer;
+    transition: border-color 0.1s, color 0.1s;
+  }
+
+  .copy-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .open-btn {
+    width: 100%;
+    justify-content: center;
+    margin-top: 1.5rem;
+  }
+
+  @media (max-width: 900px) {
+    .hack-body {
+      grid-template-columns: 1fr;
+    }
+    .unlock-panel {
+      position: static;
+    }
+  }
+</style>

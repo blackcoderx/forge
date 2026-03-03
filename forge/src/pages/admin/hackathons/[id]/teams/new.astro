@@ -1,0 +1,150 @@
+---
+import Layout from '../../../../../layouts/Layout.astro';
+
+const API   = import.meta.env.API_URL ?? 'http://localhost:8000';
+const token = Astro.cookies.get('forge_token')?.value;
+const { id } = Astro.params;
+
+let hackathon: any = null;
+try {
+  const res = await fetch(`${API}/api/hackathons/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.ok) hackathon = await res.json();
+} catch {}
+---
+
+<Layout title="Add Team — Admin" nav="admin">
+  <div class="page">
+    <div class="container">
+
+      <a href={`/admin/hackathons/${id}/teams`} class="back-link">← BACK TO TEAMS</a>
+
+      <div class="page-header">
+        <p class="page-eyebrow">// {hackathon?.name ?? 'HACKATHON'}</p>
+        <h1 class="page-title">ADD TEAM</h1>
+      </div>
+
+      <form class="admin-form" id="team-form">
+        <div class="form-section">
+          <h2 class="form-section-title">TEAM INFO</h2>
+          <div class="form-grid">
+            <div class="input-group span-2">
+              <label class="input-label" for="name">TEAM NAME *</label>
+              <input type="text" id="name" name="name" class="input" required placeholder="Team Alpha" />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h2 class="form-section-title">FORGE PORTAL LOGIN</h2>
+          <p class="section-desc">Credentials the team uses to log in to this portal.</p>
+          <div class="form-grid">
+            <div class="input-group">
+              <label class="input-label" for="portal_username">USERNAME *</label>
+              <input type="text" id="portal_username" name="portal_username" class="input" required
+                placeholder="team_alpha" autocomplete="off" />
+            </div>
+            <div class="input-group">
+              <label class="input-label" for="portal_password">PASSWORD *</label>
+              <input type="text" id="portal_password" name="portal_password" class="input" required
+                placeholder="alpha123" autocomplete="new-password" />
+              <p class="input-hint">Shown in plaintext here for easy distribution at the event.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h2 class="form-section-title">LANGFLOW CREDENTIALS</h2>
+          <p class="section-desc">Credentials this team uses to log in to Langflow. Stored encrypted.</p>
+          <div class="form-grid">
+            <div class="input-group">
+              <label class="input-label" for="langflow_username">LANGFLOW USERNAME *</label>
+              <input type="text" id="langflow_username" name="langflow_username" class="input" required
+                placeholder="lf_team_alpha" autocomplete="off" />
+            </div>
+            <div class="input-group">
+              <label class="input-label" for="langflow_password">LANGFLOW PASSWORD *</label>
+              <input type="text" id="langflow_password" name="langflow_password" class="input" required
+                placeholder="lf_alpha_pass" autocomplete="new-password" />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <div id="form-error" class="alert-error" style="display:none;"></div>
+          <button type="submit" id="submit-btn" class="btn btn-primary btn-lg">ADD TEAM →</button>
+          <a href={`/admin/hackathons/${id}/teams`} class="btn btn-outline btn-lg">CANCEL</a>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</Layout>
+
+<script define:vars={{ hackathonId: id }}>
+  const form      = document.getElementById('team-form');
+  const submitBtn = document.getElementById('submit-btn');
+  const errorEl   = document.getElementById('form-error');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'ADDING...';
+    errorEl.style.display = 'none';
+
+    const fd = new FormData(form);
+    const body = {
+      name:               fd.get('name'),
+      portal_username:    fd.get('portal_username'),
+      portal_password:    fd.get('portal_password'),
+      langflow_username:  fd.get('langflow_username'),
+      langflow_password:  fd.get('langflow_password'),
+    };
+
+    try {
+      const res = await fetch(`/api/admin/hackathons/${hackathonId}/teams`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        window.location.href = `/admin/hackathons/${hackathonId}/teams`;
+      } else {
+        const data = await res.json();
+        errorEl.textContent = data.detail ?? 'FAILED TO ADD TEAM.';
+        errorEl.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'ADD TEAM →';
+      }
+    } catch {
+      errorEl.textContent = 'NETWORK ERROR — try again.';
+      errorEl.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'ADD TEAM →';
+    }
+  });
+</script>
+
+<style>
+  .page { padding:3rem 0 5rem; min-height:calc(100vh - 64px - 56px); }
+  .back-link { display:inline-block; font-size:.8125rem; font-weight:700; letter-spacing:.06em; color:#888; margin-bottom:2rem; text-decoration:none; }
+  .back-link:hover { color:var(--color-accent); }
+  .page-header { margin-bottom:2rem; }
+  .page-eyebrow { font-size:.8125rem; font-weight:600; letter-spacing:.1em; color:var(--color-accent); margin-bottom:.375rem; }
+  .page-title { font-size:3rem; font-weight:800; letter-spacing:-.02em; line-height:1; }
+  .admin-form { display:flex; flex-direction:column; gap:2rem; max-width:720px; }
+  .form-section { border:var(--border); padding:2rem; display:flex; flex-direction:column; gap:1.25rem; }
+  .form-section-title { font-size:.875rem; font-weight:800; letter-spacing:.1em; padding-bottom:.75rem; border-bottom:var(--border); }
+  .section-desc { font-size:.875rem; color:#666; }
+  .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; }
+  .span-2 { grid-column:span 2; }
+  .input-hint { font-size:.75rem; color:#999; margin-top:.375rem; }
+  .form-actions { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
+  @media (max-width:640px) {
+    .form-grid { grid-template-columns:1fr; }
+    .span-2 { grid-column:span 1; }
+    .page-title { font-size:2rem; }
+  }
+</style>
