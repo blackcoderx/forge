@@ -1,8 +1,10 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import { getAdminToken } from '../../lib/adminToken';
 
 const API = import.meta.env.API_URL ?? 'http://localhost:8000';
 const token = Astro.cookies.get('forge_token')?.value;
+const isLoggedIn = !!token;
 
 const statusFilter = Astro.url.searchParams.get('status') ?? 'current';
 
@@ -10,13 +12,35 @@ let hackathons: any[] = [];
 let fetchError = false;
 
 try {
-  const res = await fetch(`${API}/api/hackathons?status=${statusFilter}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (res.ok) {
-    hackathons = await res.json();
+  if (token) {
+    // Authenticated user — use their token
+    const res = await fetch(`${API}/api/hackathons?status=${statusFilter}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) hackathons = await res.json();
+    else fetchError = true;
   } else {
-    fetchError = true;
+    // Unauthenticated visitor — auto-login server-side, token never sent to browser
+    const adminToken = await getAdminToken();
+    if (!adminToken) {
+      fetchError = true;
+    } else {
+      const res = await fetch(`${API}/api/hackathons/admin/all`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      if (res.ok) {
+        const all = await res.json();
+        const now = new Date();
+        hackathons = all.filter((h: any) => {
+          if (statusFilter === 'current')  return new Date(h.start_at) <= now && new Date(h.end_at) >= now;
+          if (statusFilter === 'upcoming') return new Date(h.start_at) > now;
+          if (statusFilter === 'ended')    return new Date(h.end_at) < now;
+          return true;
+        });
+      } else {
+        fetchError = true;
+      }
+    }
   }
 } catch {
   fetchError = true;
@@ -89,9 +113,11 @@ const tabs = [
                 <p class="card-desc">{h.description}</p>
               </div>
               <div class="card-footer">
-                <a href={`/hackathons/${h.id}`} class="btn btn-primary">
-                  ENTER →
-                </a>
+                {isLoggedIn ? (
+                  <a href={`/hackathons/${h.id}`} class="btn btn-primary">ENTER →</a>
+                ) : (
+                  <button class="btn btn-primary enter-btn">ENTER →</button>
+                )}
               </div>
             </div>
           ))}
@@ -100,7 +126,31 @@ const tabs = [
 
     </div>
   </div>
+
+  <!-- Toast (only rendered for unauthenticated users seeing the list) -->
+  {!isLoggedIn && (
+    <div id="toast" class="toast" aria-live="polite">
+      <span>YOU NEED TO LOG IN TO ENTER A HACKATHON.</span>
+      <a href="/login" class="toast-link">LOGIN →</a>
+    </div>
+  )}
 </Layout>
+
+<script>
+  const toast = document.getElementById('toast');
+  let toastTimer: ReturnType<typeof setTimeout>;
+
+  function showToast() {
+    if (!toast) return;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 4000);
+  }
+
+  document.querySelectorAll('.enter-btn').forEach(btn => {
+    btn.addEventListener('click', showToast);
+  });
+</script>
 
 <style>
   .page {
@@ -130,26 +180,11 @@ const tabs = [
     line-height: 1;
   }
 
-  .tab-bar {
-    margin-bottom: 2.5rem;
-  }
+  .tab-bar { margin-bottom: 2.5rem; }
+  .tab { text-decoration: none; display: inline-block; }
 
-  .tab {
-    text-decoration: none;
-    display: inline-block;
-  }
-
-  .empty-state {
-    padding: 4rem 0;
-    text-align: center;
-  }
-
-  .empty-text {
-    font-size: 1.125rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    color: #aaa;
-  }
+  .empty-state { padding: 4rem 0; text-align: center; }
+  .empty-text { font-size: 1.125rem; font-weight: 700; letter-spacing: 0.06em; color: #aaa; }
 
   .hackathon-grid {
     display: grid;
@@ -165,57 +200,50 @@ const tabs = [
     padding: 1.75rem;
   }
 
-  .card-top {
-    display: flex;
-    flex-direction: column;
-    gap: 0.625rem;
-  }
+  .card-top { display: flex; flex-direction: column; gap: 0.625rem; }
+  .card-meta { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+  .card-dates { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; color: #888; }
+  .card-title { font-size: 1.375rem; font-weight: 800; letter-spacing: -0.01em; line-height: 1.2; }
+  .card-theme { font-size: 0.8125rem; font-weight: 600; color: var(--color-accent); letter-spacing: 0.04em; }
+  .card-desc { font-size: 0.9rem; line-height: 1.6; color: #555; }
+  .card-footer { border-top: var(--border); padding-top: 1.25rem; }
 
-  .card-meta {
+  /* Toast — hidden off screen below the viewport */
+  .toast {
+    position: fixed;
+    bottom: -120px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #111;
+    color: #fff;
+    border: 1px solid #333;
+    padding: .875rem 1.5rem;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    flex-wrap: wrap;
+    gap: 1.25rem;
+    font-size: .8125rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    white-space: nowrap;
+    transition: bottom .3s ease;
+    z-index: 999;
   }
 
-  .card-dates {
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    color: #888;
-  }
+  .toast.show { bottom: 2rem; }
 
-  .card-title {
-    font-size: 1.375rem;
-    font-weight: 800;
-    letter-spacing: -0.01em;
-    line-height: 1.2;
-  }
-
-  .card-theme {
-    font-size: 0.8125rem;
-    font-weight: 600;
+  .toast-link {
     color: var(--color-accent);
-    letter-spacing: 0.04em;
+    text-decoration: none;
+    border-bottom: 1px solid var(--color-accent);
+    padding-bottom: 1px;
+    flex-shrink: 0;
   }
-
-  .card-desc {
-    font-size: 0.9rem;
-    line-height: 1.6;
-    color: #555;
-  }
-
-  .card-footer {
-    border-top: var(--border);
-    padding-top: 1.25rem;
-  }
+  .toast-link:hover { opacity: .8; }
 
   @media (max-width: 640px) {
-    .hackathon-grid {
-      grid-template-columns: 1fr;
-    }
-    .page-title {
-      font-size: 2rem;
-    }
+    .hackathon-grid { grid-template-columns: 1fr; }
+    .page-title { font-size: 2rem; }
+    .toast { white-space: normal; width: calc(100% - 2rem); bottom: -200px; }
+    .toast.show { bottom: 1rem; }
   }
 </style>

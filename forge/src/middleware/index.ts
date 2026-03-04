@@ -2,7 +2,7 @@ import { defineMiddleware } from 'astro:middleware';
 
 // Routes that require authentication and the required role
 const protectedRoutes: { pattern: RegExp; role: string }[] = [
-  { pattern: /^\/hackathons(\/.*)?$/, role: 'participant' },
+  { pattern: /^\/hackathons\/.+$/, role: 'participant' },  // individual hackathon pages require login
   { pattern: /^\/judge(\/.*)?$/, role: 'judge' },
   { pattern: /^\/admin(\/.*)?$/, role: 'admin' },
 ];

@@ -9,11 +9,14 @@ let hackathon: any = null;
 let teams: any[] = [];
 
 try {
-  const [hRes, tRes] = await Promise.all([
-    fetch(`${API}/api/hackathons/${id}`, { headers: { Authorization: `Bearer ${token}` } }),
+  const [allRes, tRes] = await Promise.all([
+    fetch(`${API}/api/hackathons/admin/all`, { headers: { Authorization: `Bearer ${token}` } }),
     fetch(`${API}/api/hackathons/${id}/teams`, { headers: { Authorization: `Bearer ${token}` } }),
   ]);
-  if (hRes.ok) hackathon = await hRes.json();
+  if (allRes.ok) {
+    const all = await allRes.json();
+    hackathon = all.find((h: any) => String(h.id) === String(id)) ?? null;
+  }
   if (tRes.ok) teams = await tRes.json();
 } catch {}
 ---
@@ -49,17 +52,31 @@ try {
                 <th>PORTAL USERNAME</th>
                 <th>LANGFLOW USERNAME</th>
                 <th>CREATED</th>
+                <th>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
               {teams.map((t: any, i: number) => (
-                <tr>
+                <tr data-team-id={t.id}>
                   <td class="idx">{i + 1}</td>
                   <td class="team-name">{t.name}</td>
-                  <td class="mono-cell">—</td>
+                  <td class="mono-cell">{t.portal_username ?? '—'}</td>
                   <td class="mono-cell accent">{t.langflow_username}</td>
                   <td class="date-cell">
                     {new Date(t.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}
+                  </td>
+                  <td class="action-cell">
+                    <a href={`/admin/hackathons/${id}/teams/${t.id}`} class="btn btn-outline" style="font-size:.75rem;padding:.375rem .75rem;">
+                      EDIT
+                    </a>
+                    <button
+                      class="btn btn-danger delete-team-btn"
+                      data-team-id={t.id}
+                      data-team-name={t.name}
+                      style="font-size:.75rem;padding:.375rem .75rem;"
+                    >
+                      DELETE
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -71,6 +88,35 @@ try {
     </div>
   </div>
 </Layout>
+
+<script define:vars={{ hackathonId: id }}>
+  document.querySelectorAll('.delete-team-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const teamId   = btn.getAttribute('data-team-id');
+      const teamName = btn.getAttribute('data-team-name');
+      if (!confirm(`DELETE team "${teamName}"?\n\nThis cannot be undone.`)) return;
+
+      btn.disabled = true;
+      btn.textContent = 'DELETING...';
+
+      try {
+        const res = await fetch(`/api/admin/hackathons/${hackathonId}/teams/${teamId}`, { method: 'DELETE' });
+        if (res.ok) {
+          document.querySelector(`tr[data-team-id="${teamId}"]`)?.remove();
+        } else {
+          const data = await res.json();
+          alert(data.detail ?? 'FAILED TO DELETE.');
+          btn.disabled = false;
+          btn.textContent = 'DELETE';
+        }
+      } catch {
+        alert('NETWORK ERROR — try again.');
+        btn.disabled = false;
+        btn.textContent = 'DELETE';
+      }
+    });
+  });
+</script>
 
 <style>
   .page { padding:3rem 0 5rem; min-height:calc(100vh - 64px - 56px); }
@@ -86,6 +132,7 @@ try {
   .mono-cell { font-family:var(--font-mono); font-size:.875rem; }
   .mono-cell.accent { color:var(--color-accent); }
   .date-cell { font-size:.8125rem; color:#888; white-space:nowrap; }
+  .action-cell { display:flex; gap:.5rem; align-items:center; }
   .empty-state { padding:4rem 0; text-align:center; }
   .empty-text { font-size:1.125rem; font-weight:700; color:#aaa; }
 </style>

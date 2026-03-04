@@ -59,10 +59,18 @@ try {
                       MANAGE TEAMS →
                     </a>
                   </td>
-                  <td>
+                  <td class="action-cell">
                     <a href={`/admin/hackathons/${h.id}`} class="btn btn-outline" style="font-size:.75rem;padding:.375rem .75rem;">
                       EDIT
                     </a>
+                    <button
+                      class="btn btn-danger delete-hackathon-btn"
+                      data-id={h.id}
+                      data-name={h.name}
+                      style="font-size:.75rem;padding:.375rem .75rem;"
+                    >
+                      DELETE
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -75,6 +83,35 @@ try {
   </div>
 </Layout>
 
+<script>
+  document.querySelectorAll('.delete-hackathon-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id   = btn.getAttribute('data-id');
+      const name = btn.getAttribute('data-name');
+      if (!confirm(`DELETE "${name}"?\n\nThis will permanently remove the hackathon and all its teams.`)) return;
+
+      btn.disabled = true;
+      btn.textContent = 'DELETING...';
+
+      try {
+        const res = await fetch(`/api/admin/hackathons/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          btn.closest('tr')?.remove();
+        } else {
+          const data = await res.json();
+          alert(data.detail ?? 'FAILED TO DELETE.');
+          btn.disabled = false;
+          btn.textContent = 'DELETE';
+        }
+      } catch {
+        alert('NETWORK ERROR — try again.');
+        btn.disabled = false;
+        btn.textContent = 'DELETE';
+      }
+    });
+  });
+</script>
+
 <style>
   .page { padding:3rem 0 5rem; min-height:calc(100vh - 64px - 56px); }
   .page-header { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:2rem; flex-wrap:wrap; }
@@ -84,6 +121,7 @@ try {
   .hack-name { font-weight:700; }
   .mono-cell { font-family:var(--font-mono); font-size:.875rem; letter-spacing:.06em; color:var(--color-accent); }
   .date-cell { font-size:.8125rem; color:#666; white-space:nowrap; }
+  .action-cell { display:flex; gap:.5rem; align-items:center; }
   .table-link { font-size:.75rem; font-weight:700; letter-spacing:.06em; color:var(--color-accent); text-decoration:none; }
   .table-link:hover { text-decoration:underline; }
   .empty-state { padding:4rem 0; text-align:center; }

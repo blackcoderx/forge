@@ -13,6 +13,8 @@ const {
   description = 'Build, Deploy, and Compete at AI Hackathons powered by Forge.',
   nav = 'default',
 } = Astro.props;
+
+const role = Astro.cookies.get('forge_role')?.value;
 ---
 
 <!doctype html>
@@ -35,7 +37,10 @@ const {
           {nav === 'default' && (
             <nav class="header-nav">
               <a href="/hackathons" class="nav-link">HACKATHONS</a>
-              <a href="/login" class="btn btn-primary">START HACKING →</a>
+              {role === 'participant'
+                ? <a href="/api/auth/logout" class="btn btn-outline-inv">STOP HACKING →</a>
+                : <a href="/login" class="btn btn-primary">START HACKING →</a>
+              }
             </nav>
           )}
 
