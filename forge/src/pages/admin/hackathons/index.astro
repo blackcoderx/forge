@@ -37,6 +37,7 @@ try {
               <tr>
                 <th>NAME</th>
                 <th>STATUS</th>
+                <th>LEADERBOARD</th>
                 <th>EVENT CODE</th>
                 <th>DATES</th>
                 <th>TEAMS</th>
@@ -48,6 +49,15 @@ try {
                 <tr>
                   <td class="hack-name">{h.name}</td>
                   <td><span class={`badge badge-${h.status}`}>{h.status.toUpperCase()}</span></td>
+                  <td>
+                    <button
+                      class={`leaderboard-toggle${h.leaderboard_live ? ' live' : ''}`}
+                      data-id={h.id}
+                      data-live={h.leaderboard_live ? 'true' : 'false'}
+                    >
+                      {h.leaderboard_live ? 'LIVE' : 'PENDING'}
+                    </button>
+                  </td>
                   <td class="mono-cell">{h.event_code}</td>
                   <td class="date-cell">
                     {new Date(h.start_at).toLocaleDateString('en-US', { month:'short', day:'numeric' })}
@@ -84,6 +94,30 @@ try {
 </Layout>
 
 <script>
+  document.querySelectorAll('.leaderboard-toggle').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id   = btn.getAttribute('data-id');
+      const live = btn.getAttribute('data-live') === 'true';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`/api/admin/hackathons/${id}/leaderboard`, { method: 'PATCH' });
+        if (res.ok) {
+          const data = await res.json();
+          const nowLive = data.leaderboard_live;
+          btn.setAttribute('data-live', nowLive ? 'true' : 'false');
+          btn.textContent = nowLive ? 'LIVE' : 'PENDING';
+          btn.classList.toggle('live', nowLive);
+        } else {
+          alert('FAILED TO TOGGLE LEADERBOARD.');
+        }
+      } catch {
+        alert('NETWORK ERROR — try again.');
+      }
+      btn.disabled = false;
+    });
+  });
+
   document.querySelectorAll('.delete-hackathon-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       const id   = btn.getAttribute('data-id');
@@ -126,4 +160,7 @@ try {
   .table-link:hover { text-decoration:underline; }
   .empty-state { padding:4rem 0; text-align:center; }
   .empty-text { font-size:1.125rem; font-weight:700; color:#aaa; }
+  .leaderboard-toggle { font-size:.75rem; font-weight:700; letter-spacing:.06em; padding:.25rem .625rem; border:2px solid #999; background:transparent; color:#999; cursor:pointer; }
+  .leaderboard-toggle.live { border-color:#00aa55; color:#00aa55; }
+  .leaderboard-toggle:disabled { opacity:.5; cursor:default; }
 </style>

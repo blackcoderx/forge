@@ -52,6 +52,11 @@ try {
             <h1 class="hack-title">{hackathon.name}</h1>
             {hackathon.theme && <p class="hack-theme">// THEME: {hackathon.theme}</p>}
             <p class="hack-desc">{hackathon.description}</p>
+            {hackathon.leaderboard_live && (
+              <div style="margin-top:.5rem;">
+                <a href={`/hackathons/${id}/leaderboard`} class="btn btn-primary">VIEW LEADERBOARD →</a>
+              </div>
+            )}
           </div>
 
           <hr class="divider" />

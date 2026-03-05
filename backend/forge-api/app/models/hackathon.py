@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import String, Text, DateTime
+from sqlalchemy import String, Text, DateTime, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
@@ -25,6 +25,8 @@ class Hackathon(Base):
     langflow_url: Mapped[str] = mapped_column(String(256), nullable=False, default="")
     langflow_admin_username: Mapped[str] = mapped_column(String(128), nullable=False, default="")
     langflow_admin_password: Mapped[str] = mapped_column(String(512), nullable=False, default="")  # encrypted
+
+    leaderboard_live: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

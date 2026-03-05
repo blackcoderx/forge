@@ -3,6 +3,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, get_current_judge, get_current_judge_or_admin
+from app.core.security import decrypt_secret
+from app.models.hackathon import Hackathon
 from app.models.score import Score
 from app.models.team import Team
 from app.models.user import User
@@ -121,3 +123,57 @@ def get_leaderboard(
         )
         for r in results
     ]
+
+
+def _build_leaderboard(hackathon_id: int, db: Session) -> list[LeaderboardEntry]:
+    results = (
+        db.query(
+            Score.team_id,
+            Team.name.label("team_name"),
+            func.avg(Score.innovation + Score.execution + Score.impact + Score.presentation).label("avg_total"),
+            func.count(Score.id).label("count"),
+        )
+        .join(Team, Team.id == Score.team_id)
+        .filter(Score.hackathon_id == hackathon_id)
+        .group_by(Score.team_id, Team.name)
+        .order_by(func.avg(Score.innovation + Score.execution + Score.impact + Score.presentation).desc())
+        .all()
+    )
+    return [
+        LeaderboardEntry(
+            team_id=r.team_id,
+            team_name=r.team_name,
+            average_score=round(r.avg_total, 2),
+            scores_submitted=r.count,
+        )
+        for r in results
+    ]
+
+
+@router.get("/hackathons/{hackathon_id}/leaderboard/public")
+def get_leaderboard_public(hackathon_id: int, db: Session = Depends(get_db)):
+    hackathon = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
+    if not hackathon:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Hackathon not found")
+    if not hackathon.leaderboard_live:
+        return {"live": False, "entries": []}
+    return {"live": True, "entries": _build_leaderboard(hackathon_id, db)}
+
+
+@router.get("/judge/teams/{team_id}/credentials")
+def get_team_credentials(
+    team_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_judge_or_admin),
+):
+    team = db.query(Team).filter(Team.id == team_id).first()
+    if not team:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
+    langflow_url = team.hackathon.langflow_url if team.hackathon else ""
+    if team.instance_id is not None and team.instance is not None:
+        langflow_url = team.instance.url
+    return {
+        "langflow_username": team.langflow_username,
+        "langflow_password": decrypt_secret(team.langflow_password),
+        "langflow_url": langflow_url,
+    }

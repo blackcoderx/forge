@@ -60,6 +60,7 @@ def create_judge(
         username=body.username,
         hashed_password=hash_password(body.password),
         role="judge",
+        hackathon_id=body.hackathon_id,
     )
     db.add(judge)
     db.commit()
@@ -82,6 +83,20 @@ def update_judge(
     db.commit()
     db.refresh(judge)
     return judge
+
+
+@router.patch("/hackathons/{hackathon_id}/leaderboard")
+def toggle_leaderboard(
+    hackathon_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    hackathon = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
+    if not hackathon:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Hackathon not found")
+    hackathon.leaderboard_live = not hackathon.leaderboard_live
+    db.commit()
+    return {"leaderboard_live": hackathon.leaderboard_live}
 
 
 @router.delete("/judges/{judge_id}", status_code=status.HTTP_204_NO_CONTENT)

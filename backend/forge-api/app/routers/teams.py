@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_participant, get_current_admin
+from app.core.deps import get_db, get_current_participant, get_current_admin, get_current_judge_or_admin
 from app.core.security import encrypt_secret, decrypt_secret, hash_password
 from app.models.hackathon import Hackathon
 from app.models.hackathon_access import HackathonAccess
@@ -75,10 +75,13 @@ def unlock_hackathon(
 def list_teams(
     hackathon_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_judge_or_admin),
 ):
     _get_hackathon_or_404(hackathon_id, db)
-    return db.query(Team).filter(Team.hackathon_id == hackathon_id).all()
+    q = db.query(Team).filter(Team.hackathon_id == hackathon_id)
+    if current_user.role == "judge":
+        q = q.filter(Team.judge_id == current_user.id)
+    return q.all()
 
 
 @router.post("/{hackathon_id}/teams", response_model=TeamOut, status_code=status.HTTP_201_CREATED)
@@ -118,6 +121,12 @@ def create_team(
     db.add(user)
     db.flush()  # get user.id before committing
 
+    # Validate judge if provided
+    if body.judge_id is not None:
+        judge = db.query(User).filter(User.id == body.judge_id, User.role == "judge").first()
+        if not judge:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Judge not found")
+
     team = Team(
         name=body.name,
         hackathon_id=hackathon_id,
@@ -125,6 +134,7 @@ def create_team(
         langflow_username=body.langflow_username,
         langflow_password=encrypt_secret(body.langflow_password),
         instance_id=body.instance_id,
+        judge_id=body.judge_id,
     )
     db.add(team)
     db.commit()
@@ -137,7 +147,7 @@ def get_team(
     hackathon_id: int,
     team_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    _: User = Depends(get_current_judge_or_admin),
 ):
     return _get_team_or_404(hackathon_id, team_id, db)
 

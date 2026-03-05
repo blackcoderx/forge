@@ -3,6 +3,20 @@ import Layout from '../../layouts/Layout.astro';
 
 const API = import.meta.env.API_URL ?? 'http://localhost:8000';
 const token = Astro.cookies.get('forge_token')?.value;
+
+// If judge is assigned to a specific hackathon, redirect straight there
+try {
+  const meRes = await fetch(`${API}/api/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (meRes.ok) {
+    const me = await meRes.json();
+    if (me.hackathon_id) {
+      return Astro.redirect(`/judge/${me.hackathon_id}`);
+    }
+  }
+} catch {}
+
 const statusFilter = Astro.url.searchParams.get('status') ?? 'current';
 
 let hackathons: any[] = [];

@@ -1,0 +1,103 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+
+const API = import.meta.env.API_URL ?? 'http://localhost:8000';
+const { id } = Astro.params;
+
+let hackathonName = 'Hackathon';
+let live = false;
+let entries: any[] = [];
+
+try {
+  const [hackRes, lbRes] = await Promise.all([
+    fetch(`${API}/api/hackathons/${id}`),
+    fetch(`${API}/api/hackathons/${id}/leaderboard/public`),
+  ]);
+  if (hackRes.ok) {
+    const h = await hackRes.json();
+    hackathonName = h.name;
+  }
+  if (lbRes.ok) {
+    const data = await lbRes.json();
+    live = data.live;
+    entries = data.entries ?? [];
+  }
+} catch {}
+---
+
+<Layout title={`Leaderboard — ${hackathonName}`}>
+  <div class="page">
+    <div class="container">
+
+      <a href={`/hackathons/${id}`} class="back-link">← BACK TO HACKATHON</a>
+
+      <div class="page-header">
+        <p class="page-eyebrow">// {hackathonName}</p>
+        <h1 class="page-title">LEADERBOARD</h1>
+      </div>
+
+      {!live ? (
+        <div class="pending-state">
+          <p class="pending-icon">⏳</p>
+          <p class="pending-title">RESULTS NOT YET PUBLISHED</p>
+          <p class="pending-desc">The organizers haven't published the leaderboard yet. Check back soon.</p>
+        </div>
+      ) : entries.length === 0 ? (
+        <div class="pending-state">
+          <p class="pending-title">NO SCORES YET</p>
+          <p class="pending-desc">Scores will appear here once judges have submitted their evaluations.</p>
+        </div>
+      ) : (
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th class="rank-col">RANK</th>
+                <th>TEAM</th>
+                <th class="score-col">AVG SCORE</th>
+                <th class="judges-col">JUDGES</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((e: any, i: number) => (
+                <tr class={i === 0 ? 'row-gold' : i === 1 ? 'row-silver' : i === 2 ? 'row-bronze' : ''}>
+                  <td class="rank-cell">
+                    {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
+                  </td>
+                  <td class="team-name">{e.team_name}</td>
+                  <td class="score-cell">{e.average_score} <span class="score-max">/ 40</span></td>
+                  <td class="judges-cell">{e.scores_submitted}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .page { padding:3rem 0 5rem; min-height:calc(100vh - 64px - 56px); }
+  .back-link { display:inline-block; font-size:.8125rem; font-weight:700; letter-spacing:.06em; color:#888; margin-bottom:2rem; text-decoration:none; }
+  .back-link:hover { color:var(--color-accent); }
+  .page-header { margin-bottom:2rem; }
+  .page-eyebrow { font-size:.8125rem; font-weight:600; letter-spacing:.1em; color:var(--color-accent); margin-bottom:.375rem; }
+  .page-title { font-size:3rem; font-weight:800; letter-spacing:-.02em; line-height:1; }
+  .table-wrap { overflow-x:auto; max-width:700px; }
+  .rank-col { width:80px; }
+  .score-col, .judges-col { width:120px; text-align:right; }
+  .rank-cell { font-size:1.125rem; }
+  .team-name { font-weight:700; font-size:1rem; }
+  .score-cell { font-weight:800; font-size:1rem; text-align:right; }
+  .score-max { font-weight:400; color:#aaa; font-size:.875rem; }
+  .judges-cell { text-align:right; color:#888; font-size:.875rem; }
+  .row-gold td { background:#fffbea; }
+  .row-silver td { background:#f8f8f8; }
+  .row-bronze td { background:#fff8f3; }
+  .pending-state { padding:4rem 0; max-width:480px; }
+  .pending-icon { font-size:2rem; margin-bottom:1rem; }
+  .pending-title { font-size:1.25rem; font-weight:800; letter-spacing:.04em; margin-bottom:.75rem; }
+  .pending-desc { font-size:.9rem; color:#666; line-height:1.6; }
+</style>

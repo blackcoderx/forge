@@ -15,6 +15,7 @@ class Team(Base):
     hackathon_id: Mapped[int] = mapped_column(ForeignKey("hackathons.id"), nullable=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, unique=True)
     instance_id: Mapped[int | None] = mapped_column(ForeignKey("langflow_instances.id"), nullable=True)
+    judge_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
 
     # Langflow credentials for this team (password encrypted via Fernet)
     langflow_username: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -26,6 +27,7 @@ class Team(Base):
     )
 
     hackathon: Mapped["Hackathon"] = relationship("Hackathon", back_populates="teams")
-    user: Mapped["User"] = relationship("User", back_populates="team")
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id], back_populates="team")
     scores: Mapped[list["Score"]] = relationship("Score", back_populates="team", cascade="all, delete-orphan")
     instance: Mapped["LangflowInstance | None"] = relationship("LangflowInstance", back_populates="teams")
+    judge: Mapped["User | None"] = relationship("User", foreign_keys=[judge_id])

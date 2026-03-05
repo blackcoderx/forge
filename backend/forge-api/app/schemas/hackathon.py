@@ -13,6 +13,7 @@ class HackathonBase(BaseModel):
     langflow_url: str = ""
     langflow_admin_username: str = ""
     langflow_admin_password: str = ""
+    leaderboard_live: bool = False
 
 
 class HackathonCreate(HackathonBase):
@@ -30,6 +31,7 @@ class HackathonUpdate(BaseModel):
     langflow_url: str | None = None
     langflow_admin_username: str | None = None
     langflow_admin_password: str | None = None
+    leaderboard_live: bool | None = None
 
 
 class HackathonOut(BaseModel):
@@ -42,6 +44,7 @@ class HackathonOut(BaseModel):
     end_at: datetime
     status: str
     langflow_url: str
+    leaderboard_live: bool
 
     model_config = {"from_attributes": True}
 

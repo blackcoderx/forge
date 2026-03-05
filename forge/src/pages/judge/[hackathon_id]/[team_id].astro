@@ -8,18 +8,21 @@ const { hackathon_id, team_id } = Astro.params;
 let team: any = null;
 let hackathon: any = null;
 let existingScore: any = null;
+let credentials: any = null;
 let fetchError = false;
 
 try {
-  const [hackRes, teamRes, scoreRes] = await Promise.all([
+  const [hackRes, teamRes, scoreRes, credRes] = await Promise.all([
     fetch(`${API}/api/hackathons/${hackathon_id}`, { headers: { Authorization: `Bearer ${token}` } }),
     fetch(`${API}/api/hackathons/${hackathon_id}/teams/${team_id}`, { headers: { Authorization: `Bearer ${token}` } }),
     fetch(`${API}/api/scores/${team_id}?hackathon_id=${hackathon_id}`, { headers: { Authorization: `Bearer ${token}` } }),
+    fetch(`${API}/api/judge/teams/${team_id}/credentials`, { headers: { Authorization: `Bearer ${token}` } }),
   ]);
 
   if (hackRes.ok) hackathon = await hackRes.json();
   if (teamRes.ok) team = await teamRes.json();
   if (scoreRes.ok) existingScore = await scoreRes.json();
+  if (credRes.ok) credentials = await credRes.json();
 } catch { fetchError = true; }
 
 const isUpdate = existingScore && existingScore.total != null;
@@ -47,18 +50,33 @@ const isUpdate = existingScore && existingScore.total != null;
             )}
           </div>
 
-          <!-- Project info from Langflow (stub until integration) -->
+          <!-- Langflow credentials -->
           <div class="project-card card">
             <div class="project-header">
-              <h2 class="project-title">PROJECT</h2>
-              <span class="stub-badge">LANGFLOW SYNC PENDING</span>
+              <h2 class="project-title">LANGFLOW ACCESS</h2>
             </div>
-            <p class="project-desc">
-              Project details will be available after Langflow integration.
-              Use the button below to view the team's flows directly.
-            </p>
+            {credentials ? (
+              <div class="cred-list">
+                <div class="cred-row">
+                  <span class="cred-label">USERNAME</span>
+                  <div class="cred-val-wrap">
+                    <span class="cred-value" id="lf-username">{credentials.langflow_username}</span>
+                    <button class="copy-btn" data-target="lf-username">COPY</button>
+                  </div>
+                </div>
+                <div class="cred-row">
+                  <span class="cred-label">PASSWORD</span>
+                  <div class="cred-val-wrap">
+                    <span class="cred-value" id="lf-password">{credentials.langflow_password}</span>
+                    <button class="copy-btn" data-target="lf-password">COPY</button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p class="project-desc">Credentials unavailable.</p>
+            )}
             <a
-              href={hackathon.langflow_url ?? '#'}
+              href={credentials?.langflow_url || hackathon.langflow_url || '#'}
               target="_blank"
               rel="noopener"
               class="btn btn-outline"
@@ -149,6 +167,17 @@ const isUpdate = existingScore && existingScore.total != null;
 </Layout>
 
 <script define:vars={{ hackathonId: hackathon_id, teamId: team_id, isUpdate }}>
+  // Copy buttons
+  document.querySelectorAll('.copy-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.getAttribute('data-target');
+      const value = document.getElementById(targetId)?.textContent ?? '';
+      navigator.clipboard.writeText(value).then(() => {
+        btn.textContent = 'COPIED!';
+        setTimeout(() => { btn.textContent = 'COPY'; }, 2000);
+      });
+    });
+  });
   // Live total calculation
   const sliders = document.querySelectorAll('.score-slider');
   const totalDisplay = document.getElementById('total-display');
@@ -183,7 +212,7 @@ const isUpdate = existingScore && existingScore.total != null;
 
     const fd = new FormData(form);
     const body = {
-      hackathon_id: hackathonId,
+      hackathon_id: Number(hackathonId),
       innovation:   parseInt(fd.get('innovation')),
       execution:    parseInt(fd.get('execution')),
       impact:       parseInt(fd.get('impact')),
@@ -232,8 +261,14 @@ const isUpdate = existingScore && existingScore.total != null;
   .project-card { margin-bottom: 0; }
   .project-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
   .project-title { font-size: 1.125rem; font-weight: 800; }
-  .stub-badge { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; padding: 0.25rem 0.625rem; border: 1px solid #ccc; color: #999; }
   .project-desc { font-size: 0.9rem; line-height: 1.6; color: #666; }
+  .cred-list { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.5rem; }
+  .cred-row { display: flex; align-items: center; gap: 1rem; }
+  .cred-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: #999; width: 80px; flex-shrink: 0; }
+  .cred-val-wrap { display: flex; align-items: center; gap: 0.75rem; }
+  .cred-value { font-family: var(--font-mono); font-size: 0.9rem; }
+  .copy-btn { font-family: var(--font-mono); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; padding: 0.25rem 0.625rem; border: 1px solid #555; background: transparent; color: #aaa; cursor: pointer; }
+  .copy-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
 
   .scoring-section { max-width: 680px; }
   .scoring-title { font-size: 1.5rem; font-weight: 800; margin-bottom: 0.5rem; }

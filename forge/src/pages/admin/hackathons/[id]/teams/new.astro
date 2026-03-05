@@ -20,6 +20,17 @@ try {
   });
   if (res.ok) availableInstances = await res.json();
 } catch {}
+
+let hackathonJudges: any[] = [];
+try {
+  const res = await fetch(`${API}/api/admin/judges`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.ok) {
+    const allJudges = await res.json();
+    hackathonJudges = allJudges.filter((j: any) => j.hackathon_id === Number(id));
+  }
+} catch {}
 ---
 
 <Layout title="Add Team — Admin" nav="admin">
@@ -102,6 +113,25 @@ try {
           </div>
         </div>
 
+        <div class="form-section">
+          <h2 class="form-section-title">ASSIGN JUDGE</h2>
+          <p class="section-desc">Optionally assign a judge to this team. The judge will only see teams assigned to them.</p>
+          <div class="form-grid">
+            <div class="input-group span-2">
+              <label class="input-label" for="judge_id">JUDGE</label>
+              <select id="judge_id" name="judge_id" class="input">
+                <option value="">— no judge assigned —</option>
+                {hackathonJudges.map((j: any) => (
+                  <option value={j.id}>{j.username}</option>
+                ))}
+              </select>
+              {hackathonJudges.length === 0 && (
+                <p class="input-hint">No judges assigned to this hackathon yet. <a href="/admin/judges/new">Add a judge →</a></p>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div class="form-actions">
           <div id="form-error" class="alert-error" style="display:none;"></div>
           <button type="submit" id="submit-btn" class="btn btn-primary btn-lg">ADD TEAM →</button>
@@ -126,6 +156,7 @@ try {
 
     const fd = new FormData(form);
     const instanceIdVal = fd.get('instance_id');
+    const judgeIdVal = fd.get('judge_id');
     const body = {
       name:               fd.get('name'),
       portal_username:    fd.get('portal_username'),
@@ -133,6 +164,7 @@ try {
       langflow_username:  fd.get('langflow_username'),
       langflow_password:  fd.get('langflow_password'),
       instance_id:        instanceIdVal ? Number(instanceIdVal) : null,
+      judge_id:           judgeIdVal ? Number(judgeIdVal) : null,
     };
 
     try {
