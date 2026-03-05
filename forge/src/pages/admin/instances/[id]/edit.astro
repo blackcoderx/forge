@@ -1,0 +1,122 @@
+---
+import Layout from '../../../../layouts/Layout.astro';
+
+const API   = import.meta.env.API_URL ?? 'http://localhost:8000';
+const token = Astro.cookies.get('forge_token')?.value;
+const { id } = Astro.params;
+
+let instance: any = null;
+try {
+  const res = await fetch(`${API}/api/admin/instances`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.ok) {
+    const all = await res.json();
+    instance = all.find((i: any) => String(i.id) === id) ?? null;
+  }
+} catch {}
+
+if (!instance) {
+  return Astro.redirect('/admin/instances');
+}
+---
+
+<Layout title="Edit Instance — Admin" nav="admin">
+  <div class="page">
+    <div class="container">
+
+      <a href="/admin/instances" class="back-link">← BACK TO INSTANCES</a>
+
+      <div class="page-header">
+        <p class="page-eyebrow">// ADMIN</p>
+        <h1 class="page-title">EDIT INSTANCE</h1>
+      </div>
+
+      <form class="admin-form" id="instance-form" data-id={instance.id}>
+        <div class="form-section">
+          <h2 class="form-section-title">LANGFLOW INSTANCE</h2>
+          <div class="form-grid">
+            <div class="input-group span-2">
+              <label class="input-label" for="url">INSTANCE URL *</label>
+              <input type="url" id="url" name="url" class="input" required
+                value={instance.url} autocomplete="off" autofocus />
+            </div>
+            <div class="input-group">
+              <label class="input-label" for="limit">TEAM LIMIT *</label>
+              <input type="number" id="limit" name="limit" class="input" required
+                min="1" max="500" value={instance.limit} />
+              <p class="input-hint">Current usage: {instance.usage} / {instance.limit}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <div id="form-error" class="alert-error" style="display:none;"></div>
+          <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+            <button type="submit" id="submit-btn" class="btn btn-primary btn-lg">SAVE CHANGES →</button>
+            <a href="/admin/instances" class="btn btn-outline btn-lg">CANCEL</a>
+          </div>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</Layout>
+
+<script>
+  const form      = document.getElementById('instance-form') as HTMLFormElement;
+  const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+  const errorEl   = document.getElementById('form-error') as HTMLElement;
+  const instanceId = form.getAttribute('data-id');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'SAVING...';
+    errorEl.style.display = 'none';
+
+    const fd = new FormData(form);
+    try {
+      const res = await fetch(`/api/admin/instances/${instanceId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url:   fd.get('url'),
+          limit: Number(fd.get('limit')),
+        }),
+      });
+
+      if (res.ok) {
+        window.location.href = '/admin/instances';
+      } else {
+        const data = await res.json();
+        errorEl.textContent = data.detail ?? 'FAILED TO UPDATE INSTANCE.';
+        errorEl.style.display = 'block';
+      }
+    } catch {
+      errorEl.textContent = 'NETWORK ERROR — try again.';
+      errorEl.style.display = 'block';
+    }
+
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'SAVE CHANGES →';
+  });
+</script>
+
+<style>
+  .page { padding:3rem 0 5rem; min-height:calc(100vh - 64px - 56px); }
+  .back-link { display:inline-block; font-size:.8125rem; font-weight:700; letter-spacing:.06em; color:#888; margin-bottom:2rem; text-decoration:none; }
+  .back-link:hover { color:var(--color-accent); }
+  .page-header { margin-bottom:2rem; }
+  .page-eyebrow { font-size:.8125rem; font-weight:600; letter-spacing:.1em; color:var(--color-accent); margin-bottom:.375rem; }
+  .page-title { font-size:3rem; font-weight:800; letter-spacing:-.02em; line-height:1; }
+  .admin-form { display:flex; flex-direction:column; gap:2rem; max-width:600px; }
+  .form-section { border:var(--border); padding:2rem; display:flex; flex-direction:column; gap:1.25rem; }
+  .form-section-title { font-size:.875rem; font-weight:800; letter-spacing:.1em; padding-bottom:.75rem; border-bottom:var(--border); }
+  .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; }
+  .span-2 { grid-column:1/-1; }
+  .input-hint { font-size:.75rem; color:#999; margin-top:.375rem; }
+  .form-actions { display:flex; flex-direction:column; gap:1rem; }
+  .alert-error { border:2px solid var(--color-accent); padding:.75rem 1rem; font-size:.875rem; font-weight:600; color:var(--color-accent); }
+  @media (max-width:640px) { .form-grid { grid-template-columns:1fr; } }
+</style>

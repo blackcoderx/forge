@@ -1,0 +1,124 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+
+const API   = import.meta.env.API_URL ?? 'http://localhost:8000';
+const token = Astro.cookies.get('forge_token')?.value;
+
+let instances: any[] = [];
+try {
+  const res = await fetch(`${API}/api/admin/instances`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.ok) instances = await res.json();
+} catch {}
+---
+
+<Layout title="Instances — Admin" nav="admin">
+  <div class="page">
+    <div class="container">
+
+      <div class="page-header">
+        <div>
+          <p class="page-eyebrow">// ADMIN</p>
+          <h1 class="page-title">INSTANCES</h1>
+        </div>
+        <a href="/admin/instances/new" class="btn btn-primary">+ ADD INSTANCE</a>
+      </div>
+
+      {instances.length === 0 ? (
+        <div class="empty-state">
+          <p class="empty-text">NO INSTANCES YET.</p>
+          <a href="/admin/instances/new" class="btn btn-primary" style="margin-top:1rem;">ADD FIRST →</a>
+        </div>
+      ) : (
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>URL</th>
+                <th>USAGE</th>
+                <th>LIMIT</th>
+                <th>CREATED</th>
+                <th>ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {instances.map((inst: any, i: number) => (
+                <tr>
+                  <td class="idx">{i + 1}</td>
+                  <td class="url-cell">{inst.url}</td>
+                  <td>
+                    <span class={inst.usage >= inst.limit ? 'usage-full' : 'usage-ok'}>
+                      {inst.usage} / {inst.limit}
+                    </span>
+                  </td>
+                  <td>{inst.limit}</td>
+                  <td class="date-cell">
+                    {new Date(inst.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}
+                  </td>
+                  <td class="actions-cell">
+                    <a
+                      href={`/admin/instances/${inst.id}/edit`}
+                      class="btn btn-outline"
+                      style="font-size:.75rem;padding:.375rem .75rem;"
+                    >EDIT</a>
+                    <button
+                      class="btn btn-outline delete-btn"
+                      style="font-size:.75rem;padding:.375rem .75rem;"
+                      data-id={inst.id}
+                      data-url={inst.url}
+                      data-usage={inst.usage}
+                    >DELETE</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+    </div>
+  </div>
+</Layout>
+
+<script>
+  document.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id    = btn.getAttribute('data-id');
+      const url   = btn.getAttribute('data-url');
+      const usage = Number(btn.getAttribute('data-usage'));
+
+      if (usage > 0) {
+        alert(`Cannot delete — ${usage} team(s) are assigned to this instance.`);
+        return;
+      }
+
+      if (!confirm(`Delete instance "${url}"? This cannot be undone.`)) return;
+
+      const res = await fetch(`/api/admin/instances/${id}`, { method: 'DELETE' });
+      if (res.ok || res.status === 204) {
+        window.location.reload();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.detail ?? 'FAILED TO DELETE — try again.');
+      }
+    });
+  });
+</script>
+
+<style>
+  .page { padding:3rem 0 5rem; min-height:calc(100vh - 64px - 56px); }
+  .page-header { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:2rem; flex-wrap:wrap; }
+  .page-eyebrow { font-size:.8125rem; font-weight:600; letter-spacing:.1em; color:var(--color-accent); margin-bottom:.375rem; }
+  .page-title { font-size:3rem; font-weight:800; letter-spacing:-.02em; line-height:1; }
+  .table-wrap { overflow-x:auto; }
+  .idx { color:#aaa; width:40px; }
+  .url-cell { font-family:var(--font-mono); font-size:.875rem; word-break:break-all; }
+  .date-cell { font-size:.8125rem; color:#888; }
+  .actions-cell { display:flex; gap:.5rem; flex-wrap:wrap; }
+  .usage-ok { font-weight:700; color:#00aa55; }
+  .usage-full { font-weight:700; color:var(--color-accent); }
+  .empty-state { padding:4rem 0; text-align:center; }
+  .empty-text { font-size:1.125rem; font-weight:700; color:#aaa; }
+</style>

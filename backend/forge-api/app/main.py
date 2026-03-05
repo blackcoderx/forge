@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.db.init_db import init_db
-from app.routers import auth, hackathons, teams, scores, admin
+from app.routers import auth, hackathons, teams, scores, admin, instances
 
 init_db()
 
@@ -26,6 +26,7 @@ app.include_router(hackathons.router)
 app.include_router(teams.router)
 app.include_router(scores.router)
 app.include_router(admin.router)
+app.include_router(instances.router)
 
 
 @app.get("/health")

@@ -5,6 +5,7 @@ from app.core.deps import get_db, get_current_participant, get_current_admin
 from app.core.security import encrypt_secret, decrypt_secret, hash_password
 from app.models.hackathon import Hackathon
 from app.models.hackathon_access import HackathonAccess
+from app.models.langflow_instance import LangflowInstance
 from app.models.team import Team
 from app.models.user import User
 from app.schemas.team import TeamCreate, TeamUpdate, TeamOut, UnlockRequest, UnlockResponse
@@ -57,10 +58,14 @@ def unlock_hackathon(
     db.add(access)
     db.commit()
 
+    langflow_url = hackathon.langflow_url
+    if team.instance_id is not None and team.instance is not None:
+        langflow_url = team.instance.url
+
     return UnlockResponse(
         langflow_username=team.langflow_username,
         langflow_password=decrypt_secret(team.langflow_password),
-        langflow_url=hackathon.langflow_url,
+        langflow_url=langflow_url,
     )
 
 
@@ -85,6 +90,18 @@ def create_team(
 ):
     _get_hackathon_or_404(hackathon_id, db)
 
+    # Validate instance if provided
+    if body.instance_id is not None:
+        instance = db.query(LangflowInstance).filter(LangflowInstance.id == body.instance_id).first()
+        if not instance:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Instance not found")
+        usage = db.query(Team).filter(Team.instance_id == body.instance_id).count()
+        if usage >= instance.limit:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Instance is at capacity",
+            )
+
     # Check portal username is unique
     if db.query(User).filter(User.username == body.portal_username).first():
         raise HTTPException(
@@ -107,6 +124,7 @@ def create_team(
         user_id=user.id,
         langflow_username=body.langflow_username,
         langflow_password=encrypt_secret(body.langflow_password),
+        instance_id=body.instance_id,
     )
     db.add(team)
     db.commit()

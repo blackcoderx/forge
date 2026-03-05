@@ -4,12 +4,6 @@ version = "0.1.0"
 description = "Forge hackathon platform API"
 readme = "README.md"
 requires-python = ">=3.13"
-[project.scripts]
-dev = "uvicorn app.main:app --reload"
-
-[tool.uv]
-package = false
-
 dependencies = [
     "alembic>=1.18.4",
     "bcrypt==4.0.1",
@@ -22,3 +16,9 @@ dependencies = [
     "sqlalchemy>=2.0.48",
     "uvicorn[standard]>=0.41.0",
 ]
+
+[project.scripts]
+dev = "uvicorn app.main:app --reload"
+
+[tool.uv]
+package = false

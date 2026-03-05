@@ -8,6 +8,7 @@ class TeamCreate(BaseModel):
     portal_password: str
     langflow_username: str
     langflow_password: str
+    instance_id: int | None = None
 
 
 class TeamUpdate(BaseModel):
@@ -22,6 +23,7 @@ class TeamOut(BaseModel):
     name: str
     hackathon_id: int
     langflow_username: str
+    instance_id: int | None
     created_at: datetime
 
     model_config = {"from_attributes": True}

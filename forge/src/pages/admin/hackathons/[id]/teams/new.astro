@@ -12,6 +12,14 @@ try {
   });
   if (res.ok) hackathon = await res.json();
 } catch {}
+
+let availableInstances: any[] = [];
+try {
+  const res = await fetch(`${API}/api/admin/instances/available`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.ok) availableInstances = await res.json();
+} catch {}
 ---
 
 <Layout title="Add Team — Admin" nav="admin">
@@ -71,6 +79,29 @@ try {
           </div>
         </div>
 
+        <div class="form-section">
+          <h2 class="form-section-title">LANGFLOW INSTANCE</h2>
+          <p class="section-desc">Assign this team to a Langflow instance. Only instances with available capacity are shown.</p>
+          <div class="form-grid">
+            <div class="input-group span-2">
+              <label class="input-label" for="instance_id">INSTANCE *</label>
+              <select id="instance_id" name="instance_id" class="input" required>
+                <option value="">— select instance —</option>
+                {availableInstances.map((inst: any) => (
+                  <option value={inst.id}>
+                    {inst.url} &nbsp;({inst.usage} / {inst.limit} teams)
+                  </option>
+                ))}
+              </select>
+              {availableInstances.length === 0 && (
+                <p class="input-hint" style="color:var(--color-accent);">
+                  No instances available. <a href="/admin/instances/new">Add one first →</a>
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div class="form-actions">
           <div id="form-error" class="alert-error" style="display:none;"></div>
           <button type="submit" id="submit-btn" class="btn btn-primary btn-lg">ADD TEAM →</button>
@@ -94,12 +125,14 @@ try {
     errorEl.style.display = 'none';
 
     const fd = new FormData(form);
+    const instanceIdVal = fd.get('instance_id');
     const body = {
       name:               fd.get('name'),
       portal_username:    fd.get('portal_username'),
       portal_password:    fd.get('portal_password'),
       langflow_username:  fd.get('langflow_username'),
       langflow_password:  fd.get('langflow_password'),
+      instance_id:        instanceIdVal ? Number(instanceIdVal) : null,
     };
 
     try {
